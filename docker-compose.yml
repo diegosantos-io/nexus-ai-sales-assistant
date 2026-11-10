@@ -1,0 +1,21 @@
+﻿services:
+  db:
+    image: postgres:17
+    container_name: nexus_ai_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nexus_ai_db
+      POSTGRES_USER: nexus_user
+      POSTGRES_PASSWORD: nexus_dev_2026
+    ports:
+      - "5435:5432"
+    volumes:
+      - nexus_ai_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus_user -d nexus_ai_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  nexus_ai_data:
