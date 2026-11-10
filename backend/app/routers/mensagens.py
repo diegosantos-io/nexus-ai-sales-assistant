@@ -6,10 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_usuario_atual
 from app.database.connection import get_db
+from app.integrations.ai.sales_assistant import gerar_resposta
 from app.models.conversa import Conversa
 from app.models.mensagem import Mensagem
 from app.models.usuario import Usuario
 from app.schemas.mensagem import MensagemCreate, MensagemResponse
+from app.services.contexto_service import obter_historico_conversa
 
 
 router = APIRouter(
@@ -47,7 +49,7 @@ def obter_conversa_da_empresa(
 
 @router.post(
     "/",
-    response_model=MensagemResponse,
+    response_model=list[MensagemResponse],
     status_code=status.HTTP_201_CREATED
 )
 def criar_mensagem(
@@ -66,23 +68,63 @@ def criar_mensagem(
             detail="Não é possível enviar mensagens em uma conversa encerrada."
         )
 
-    mensagem = Mensagem(
+    mensagem_usuario = Mensagem(
         conversa_id=conversa.id,
-        remetente=dados.remetente,
+        remetente="user",
         conteudo=dados.conteudo.strip()
     )
 
-    if not mensagem.conteudo:
+    if not mensagem_usuario.conteudo:
         raise HTTPException(
             status_code=422,
             detail="O conteúdo da mensagem não pode estar vazio."
         )
 
-    db.add(mensagem)
+    db.add(mensagem_usuario)
     db.commit()
-    db.refresh(mensagem)
+    db.refresh(mensagem_usuario)
 
-    return mensagem
+    historico = obter_historico_conversa(
+        conversa_id=conversa.id,
+        db=db
+    )
+
+    instrucoes = {
+        "role": "system",
+        "content": (
+            "Você é o Nexus, um assistente virtual especializado em vendas. "
+            "Responda em português brasileiro, com clareza, educação e objetividade. "
+            "Entenda as necessidades do cliente, faça perguntas quando necessário "
+            "e ajude-o a encontrar produtos ou serviços adequados. "
+            "Não invente preços, disponibilidade ou características de produtos. "
+            "Quando não souber uma informação, seja transparente."
+        )
+    }
+
+    try:
+        resposta_ia = gerar_resposta(
+            [instrucoes, *historico]
+        )
+    except (RuntimeError, ValueError):
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Não foi possível gerar uma resposta no momento. "
+                "Sua mensagem foi salva. Tente novamente mais tarde."
+            )
+        )
+
+    mensagem_assistente = Mensagem(
+        conversa_id=conversa.id,
+        remetente="assistant",
+        conteudo=resposta_ia
+    )
+
+    db.add(mensagem_assistente)
+    db.commit()
+    db.refresh(mensagem_assistente)
+
+    return [mensagem_usuario, mensagem_assistente]
 
 
 @router.get(

@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class MensagemCreate(BaseModel):
-    remetente: Literal["user", "assistant", "system"]
+    remetente: Literal["user"]
     conteudo: str = Field(min_length=1)
 
 
