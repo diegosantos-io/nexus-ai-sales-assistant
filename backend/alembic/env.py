@@ -7,7 +7,14 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import settings
 from app.database.base import Base
 
-from app.models import Empresa, Usuario
+from app.models import (
+    Empresa,
+    Usuario,
+    Cliente,
+    Conversa,
+    Mensagem,
+    Produto,
+)
 # Importar os modelos para o Alembic reconhecê-los
 # Os modelos serão adicionados aqui conforme forem criados.
 
