@@ -1,4 +1,6 @@
+
 from uuid import UUID
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -11,6 +13,7 @@ from app.models.conversa import Conversa
 from app.models.mensagem import Mensagem
 from app.models.usuario import Usuario
 from app.schemas.mensagem import MensagemCreate, MensagemResponse
+from app.services.catalogo_service import obter_catalogo_empresa
 from app.services.contexto_service import obter_historico_conversa
 
 
@@ -89,17 +92,37 @@ def criar_mensagem(
         db=db
     )
 
+    catalogo = obter_catalogo_empresa(
+        empresa_id=conversa.empresa_id,
+        db=db
+    )
+
     instrucoes = {
         "role": "system",
         "content": (
             "Você é o Nexus, um assistente virtual especializado em vendas. "
             "Responda em português brasileiro, com clareza, educação e objetividade. "
-            "Entenda as necessidades do cliente, faça perguntas quando necessário "
-            "e ajude-o a encontrar produtos ou serviços adequados. "
-            "Não invente preços, disponibilidade ou características de produtos. "
-            "Quando não souber uma informação, seja transparente."
+
+            "\n\nREGRAS OBRIGATÓRIAS SOBRE PRODUTOS:\n"
+            "1. O catálogo fornecido abaixo é a única fonte autorizada "
+            "para informações sobre produtos da empresa.\n"
+            "2. Nunca afirme que a empresa vende, oferece ou possui um produto "
+            "que não esteja explicitamente listado no catálogo.\n"
+            "3. Nunca invente nomes, preços, estoque, características ou modelos.\n"
+            "4. Se o cliente perguntar sobre um produto ausente do catálogo, "
+            "informe claramente que não encontrou esse produto no catálogo.\n"
+            "5. Se o catálogo estiver vazio ([]), informe que não há produtos "
+            "cadastrados no catálogo da empresa no momento.\n"
+            "6. Produtos com estoque igual a zero estão indisponíveis.\n"
+            "7. Não confunda produtos de outras empresas com os produtos "
+            "da empresa atual.\n"
+            "8. Não invente informações para tentar agradar o cliente.\n"
+
+            "\n\nCATÁLOGO DE PRODUTOS DA EMPRESA:\n"
+            f"{json.dumps(catalogo, ensure_ascii=False, indent=2)}"
         )
     }
+
 
     try:
         resposta_ia = gerar_resposta(

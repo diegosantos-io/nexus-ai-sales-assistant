@@ -1,7 +1,10 @@
+
 import requests
+
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "qwen3.5:4b"
+
 
 def gerar_resposta(mensagens: list[dict[str, str]]) -> str:
     try:
@@ -17,16 +20,25 @@ def gerar_resposta(mensagens: list[dict[str, str]]) -> str:
                     "num_predict": 500
                 }
             },
-            timeout=120
+            timeout=(10, 120)
         )
 
         resposta.raise_for_status()
 
         dados = resposta.json()
-        conteudo = dados.get("message", {}).get("content", "")
 
-        if not conteudo or not conteudo.strip():
-            raise ValueError("A IA retornou uma resposta vazia.")
+        if not isinstance(dados, dict):
+            raise ValueError("Formato de resposta inválido do Ollama.")
+
+        mensagem = dados.get("message")
+
+        if not isinstance(mensagem, dict):
+            raise ValueError("A resposta do Ollama não contém uma mensagem válida.")
+
+        conteudo = mensagem.get("content")
+
+        if not isinstance(conteudo, str) or not conteudo.strip():
+            raise ValueError("A IA retornou uma resposta vazia ou inválida.")
 
         return conteudo.strip()
 

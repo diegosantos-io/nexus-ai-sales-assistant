@@ -1,12 +1,11 @@
+
 from datetime import datetime
-from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class MensagemCreate(BaseModel):
-    remetente: Literal["user"]
     conteudo: str = Field(min_length=1)
 
 
